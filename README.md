@@ -4,7 +4,7 @@
 This file is for Applied Data Mining final project.
 Applied Data Mining is a graduate course at UT Austin, which is taught by prof. Byron Wallace. This course will provide an overview of the applications, methods, tools and technologies that constitute ``data science'' and data mining.
 
-This finla project is to build a movie review classifier.
+This final project is to build a movie review classifier.
 
 
 ### Descriptions
