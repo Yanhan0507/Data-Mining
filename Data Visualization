@@ -1,0 +1,128 @@
+library(tm) # Framework for text mining.
+library(SnowballC) # Provides wordStem() for stemming.
+library(qdap) # Quantitative discourse analysis of transcripts.
+library(qdapDictionaries)
+library(dplyr) # Data preparation and pipes %>%.
+library(RColorBrewer) # Generate palette of colours for plots.
+library(ggplot2) # Plot word frequencies.
+library(scales) # Include commas in numbers.
+library(Rgraphviz)
+docs <- Corpus(DirSource("/Users/henry/Desktop/corpus"))
+
+summary(docs)
+inspect(docs[1])
+toSpace <- content_transformer(function(x, pattern) gsub(pattern, " ", x))
+docs <- tm_map(docs, toSpace, "/|@|\\|")
+docs <- tm_map(docs, content_transformer(tolower))
+docs <- tm_map(docs, removeNumbers)
+docs <- tm_map(docs, removePunctuation)
+
+docs <- tm_map(docs, removeWords, stopwords("english"))
+docs <- tm_map(docs, removeWords,c("own", "stop", "words"))
+
+docs <- tm_map(docs, stripWhitespace)
+toString <- content_transformer(function(x, from, to) gsub(from, to, x))
+docs <- tm_map(docs, toString, "specific transform", "ST")
+docs <- tm_map(docs, toString, "other specific transform", "OST")
+dtm <- DocumentTermMatrix(docs)
+freq <- colSums(as.matrix(dtm))
+table(freq)
+
+#correlation
+#findFreqTerms(dtm, lowfreq=5000)
+#findAssocs(dtm, "film" , corlimit=0.3)
+#plot(dtm,terms=findFreqTerms(dtm, lowfreq=3000)[1:50],corThreshold=0.5)
+
+freq <- sort(colSums(as.matrix(dtm)), decreasing = TRUE)
+wf<- data.frame(word = names(freq), freq=freq)
+
+library(ggplot2)
+subset(wf, freq>500) %>%
+  ggplot(aes(word, freq))+
+  geom_bar(stat="identity")+
+  theme(axis.text.x=element_text(angle=45, hjust=1))
+
+library(wordcloud)
+set.seed(123)
+wordcloud(names(freq), freq, min.freq = 3000)
+
+> set.seed(142)
+> dark2 <- brewer.pal(6, "Dark2")
+> wordcloud(names(freq), freq, min.freq=100, rot.per=0.2, colors=dark2)
+
+words <- dtm %>%
+  as.matrix %>%
+  colnames %>% 
+  (function(x) x[nchar(x) < 20])
+
+head(words,15)
+summary(nchar(words))
+table(nchar(words))
+dist_tab(nchar(words))
+
+data.frame(nletters=nchar(words)) %>%
+  ggplot(aes(x=nletters))+
+  geom_histogram(binwidth=1)+
+  geom_vline(xintercept=mean(nchar(words)),
+             colour="green", size=1, alpha=.5)+
+  labs(x="Number of Letters", y = "Number of Words")
+
+library(dplyr)
+library(stringr)
+words %>%
+  str_split("") %>%
+  sapply(function(x) x[-1]) %>%
+  unlist %>%
+  dist_tab %>%
+  mutate(Letter=factor (toupper(interval),
+                        levels=toupper(interval[order(freq)]))) %>%
+  ggplot(aes(Letter, weight=percent))+
+  geom_bar()+
+  coord_flip()+
+  ylab("Proportion")+
+  scale_y_continuous(breaks=seq(0, 12,2),
+                    label=function(x) paste0(x, "%"),
+                    expand=c(0,0), limits=c(0,12))
+
+
+words %>%
+  lapply(function(x) sapply(letters, gregexpr, x, fixed=TRUE)) %>%
+  unlist %>% 
+  (function(x) x[x!=-1]) %>% 
+  (function(x) setNames(x, gsub("\\d", "", names(x)))) %>% 
+  (function(x) apply(table(data.frame(letter=toupper(names(x)),
+                                                position=unname(x))),
+                                  1, function(y) y/length(x))) %>%
+  qheat(high="green", low="yellow", by.column=NULL,
+        values=TRUE, digits=3, plot=FALSE)+
+  ylab("Letter")+
+  xlab("Position")+
+  theme(axis.text.x=element_text(angle=0))+
+  guides(fill=guide_legend(title="Proportion"))
+  
+  m1 <- c(0 , 1, 2)
+n1 <- c(2, 3, 3)
+
+y1 <- c(0.8054,0.8009,0.8062,0.7993,0.8154,0.8089,0.8127,
+        0.8136,0.8092,0.8080, 0.8187, 0.8182, 0.8201, 0.8192, 0.8186)
+x1 <- c(1000,2000,3000,4000,5000,6000,7000,8000,9000,10000,11000,12000,13000,14000,15000)
+plot(x1,1,ann=FALSE, type= 'l', col = "blue")
+
+
+m2 <- c(0 , 1, 2)
+n2 <- c(1, 4, 7)
+
+y2 <- c(0.8646,0.8589,0.8583,0.8601,0.8686, 0.8701,0.8737,0.8615,0.8663,
+        0.8769,0.8725,0.8733,0.8802,0.8948,0.8974)
+x2 <- c(1000,2000,3000,4000,5000,6000,7000,8000,9000,10000,11000,12000,13000,14000,15000)
+lines(x2, y2,lty=2, ann=FALSE, col="red") 
+
+
+box()
+
+
+title(xlab="The number of deatures", col.lab=rgb(0,0.5,0)) 
+title(ylab="Accuracy", col.lab=rgb(0,0.5,0)) 
+g_range <- range(0, x, x1)
+legend(1, g_range[2], c("SVM","RandomForest"),col=c("blue","red"),lty=1:2);
+
