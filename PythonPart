@@ -1,0 +1,174 @@
+import csv
+import logging
+import re
+
+from bs4 import BeautifulSoup 
+from nltk.corpus import stopwords
+from pandas.core.series import Series
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.feature_extraction.text import CountVectorizer
+
+import data
+import numpy as np
+import pandas as pd
+from sklearn import svm
+from textblob.classifiers import NaiveBayesClassifier
+from textblob import TextBlob
+
+#16/116  14/116  14/116  11/116    46/64      N26P28/390  N4P14/64
+def review_to_words( raw_review):
+    review_test = BeautifulSoup(raw_review).get_text()
+    letters_only = re.sub("[^a-zA-Z]"," ",review_test)
+    words = letters_only.lower().split()
+    stops = set(stopwords.words("english"))
+    meaningful_words =  [w for w in words if not w in stops]   
+    return( " ".join( meaningful_words ))
+
+def randomForest(features, para):
+    train = pd.read_csv("labeledTrainData.tsv", header=0, \
+                    delimiter="\t", quoting=3)
+    num = train["sentiment"].size
+    clean_review = []
+    for i in xrange(0, num):
+        clean_review.append(review_to_words(train["review"][i]));
+    vectorizer = CountVectorizer(analyzer = "word",   \
+                         tokenizer = None,    \
+                         preprocessor = None, \
+                         stop_words = None,   \
+                         max_features = features) 
+    train_data_features = vectorizer.fit_transform(clean_review)
+    train_data_features = train_data_features.toarray()
+    
+
+    vocab = vectorizer.get_feature_names()
+    forest = RandomForestClassifier(n_estimators = para) 
+    forest = forest.fit( train_data_features, train["sentiment"] )
+    vocab = vectorizer.get_feature_names()
+    dist = np.sum(train_data_features, axis=0)
+    test = pd.read_csv("abc.tsv", header=0, delimiter="\t", \
+               quoting=3 )     
+    num1 = len(test["review"])
+    
+    testreview = []
+
+    for i in xrange(0,num1):
+        testreview.append(review_to_words(test["review"][i]))
+    
+    test_features = vectorizer.transform(testreview)
+    test_features = test_features.toarray()
+    
+     
+    result = forest.predict(test_features)
+#     print result.shape
+    sum = 0 
+    falsePositive = 0
+    falseNegative = 0
+    for i in xrange(0, num1):
+        sum = sum + abs(result[i] - test["sentiment"][i]) 
+        if(result[i] - test["sentiment"][i] > 0):
+                  falsePositive += 1
+        if(result[i] - test["sentiment"][i] < 0):
+                  falseNegative += 1
+    
+
+    print 1.0-(sum + 0.0)/(num1+0.0)
+
+def NaiveBayese(features):
+    train = pd.read_csv("abc.tsv", header=0, \
+                    delimiter="\t", quoting=3)
+    num = train["sentiment"].size
+    clean_review = []
+    for i in xrange(0, num):
+        clean_review.append(review_to_words(train["review"][i]));
+    trainSet = []
+    for i in range(num):
+        a = clean_review[i]
+        b = train["sentiment"][i]
+        x = (a, b)
+        trainSet.append(x)
+    cl = NaiveBayesClassifier(trainSet)
+    
+    test = pd.read_csv("cba.tsv", header=0, delimiter="\t", \
+               quoting=3 )     
+    num1 = len(test["review"])
+    
+    testreview = []
+
+    for i in xrange(0,num1):
+        testreview.append(review_to_words(test["review"][i]))
+            
+    
+    falsePositive = 0
+    falseNegative = 0
+    sum = 0
+    for i in xrange(0, num1):
+        K = cl.classify(testreview[i])
+        sum = sum + abs(K - test["sentiment"][i]) 
+        if(K - test["sentiment"][i] > 0):
+            falsePositive += 1
+        if(K - test["sentiment"][i] < 0):
+            falseNegative += 1
+
+    print (sum + 0.0)/(num1+0.0)
+    
+
+def SupportVectorMachine(features):
+    
+    train = pd.read_csv("labeledTrainData.tsv", header=0, \
+                    delimiter="\t", quoting=3)
+    num = train["sentiment"].size
+    clean_review = []
+    for i in xrange(0, num):
+        clean_review.append(review_to_words(train["review"][i]));
+    vectorizer = CountVectorizer(analyzer = "word",   \
+                         tokenizer = None,    \
+                         preprocessor = None, \
+                         stop_words = None,   \
+                         max_features = features) 
+    train_data_features = vectorizer.fit_transform(clean_review)
+    train_data_features = train_data_features.toarray()
+    
+
+    vocab = vectorizer.get_feature_names()
+    clf = svm.LinearSVC()
+    clf.fit(train_data_features, train["sentiment"]) 
+    
+    vocab = vectorizer.get_feature_names()
+    dist = np.sum(train_data_features, axis=0)
+    test = pd.read_csv("abc.tsv", header=0, delimiter="\t", \
+               quoting=3 )     
+    num1 = len(test["review"])
+    
+    testreview = []
+
+    for i in xrange(0,num1):
+        testreview.append(review_to_words(test["review"][i]))
+    
+    test_features = vectorizer.transform(testreview)
+    test_features = test_features.toarray()
+    
+     
+    result = clf.predict(test_features)
+    falsePositive = 0
+    falseNegative = 0
+    sum = 0
+    for i in xrange(0, num1):
+        sum = sum + abs(result[i] - test["sentiment"][i]) 
+        if(result[i] - test["sentiment"][i] > 0):
+            falsePositive += 1
+        if(result[i] - test["sentiment"][i] < 0):
+            falseNegative += 1
+
+    print 1.0-(sum + 0.0)/(num1+0.0)
+def main():
+    NaiveBayesClassifier(500);  ## the parameter indicates the number of total features
+    randomForest(5000, 100);    ## the first parameter indicates the number of total features, 
+    ## the second parameter indicates the number of features for each individual tree
+    SupportVectorMachine(5000); ## the parameter indicates the number of total features
+    
+          
+if __name__ == "__main__":
+    main()
+
+
+    
