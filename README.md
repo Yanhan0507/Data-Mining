@@ -10,4 +10,4 @@ This final project is to build a movie review classifier.
 ### Descriptions
 The python part for this project implements three different data-models: Random Forest Classifier, Naive Bayes Classifier, and Suppert Vector Machine.
 
-The R part for this project visualize some amazing plots in R, like word cloud.
+The R part for this project is to visualize data and draw some amazing plots in R, like word cloud.
